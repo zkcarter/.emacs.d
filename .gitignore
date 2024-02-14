@@ -7,6 +7,9 @@
 # Backup files
 *~
 
+# custom
+custom.el
+
 # Undo-tree save-files
 *.~undo-tree
 
