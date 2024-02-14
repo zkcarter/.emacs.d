@@ -13,6 +13,13 @@
 # flycheck temp file
 .flycheck*
 
+# recentf
+recentf
+history
+
+# network
+*.data
+
 elpa/
 quelpa/
 eln-cache/
