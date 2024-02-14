@@ -1,0 +1,22 @@
+;;; init-rust.el --- Rust -*- lexical-binding: t -*-
+
+;;; Commentary:
+;;
+
+;;; Code:
+
+(use-package rust-mode
+  :ensure t
+  :mode ("\\.rs\\'" . rust-mode)
+  :custom
+  (rust-indent-where-clause t)
+  (rust-format-on-save t)
+  (rust-format-show-buffer nil))
+
+;; Cargo integration
+(use-package cargo
+  :ensure t
+  :hook (rust-mode . cargo-minor-mode))
+
+(provide 'init-rust)
+;;; init-rust.el ends here

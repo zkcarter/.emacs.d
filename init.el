@@ -1,57 +1,102 @@
-(when (version< emacs-version "27.1")
-  (error "This requires Emacs 27.1 and above!"))
+;;; init.el --- The main entry for emacs -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
 
-;;
-;; Speed up startup
-;;
+;; A big contributor to startup times is garbage collection. We up the gc
+;; threshold to temporarily prevent it from running, and then reset it by the
+;; `gcmh' package.
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.6)
 
-;; Defer garbage collection further back in the startup process
-(setq gc-cons-threshold most-positive-fixnum)
+;; Increase how much is read from processes in a single chunk (default is 4kb).
+;; `lsp-mode' benefits from that.
+(setq read-process-output-max (* 4 1024 1024))
 
-;; Prevent flashing of unstyled modeline at startup
-(setq-default mode-line-format nil)
+(require 'package)
+(setq package-archives
+      '(("melpa"  . "https://melpa.org/packages/")
+        ("gnu"    . "https://elpa.gnu.org/packages/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
 
-;; Don't pass case-insensitive to `auto-mode-alist'
-(setq auto-mode-case-fold nil)
+;; Bootstrap `straight.el'
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
-(unless (or (daemonp) noninteractive init-file-debug)
-  ;; Suppress file handlers operations at startup
-  ;; `file-name-handler-alist' is consulted on each call to `require' and `load'
-  (let ((old-value file-name-handler-alist))
-    (setq file-name-handler-alist nil)
-    (set-default-toplevel-value 'file-name-handler-alist file-name-handler-alist)
-    (add-hook 'emacs-startup-hook
-              (lambda ()
-                "Recover file name handlers."
-                (setq file-name-handler-alist
-                      (delete-dups (append file-name-handler-alist old-value))))
-              101)))
+;; Bootstrap `use-package'
+;; (unless (package-installed-p 'use-package)
+;;   (package-refresh-contents)
+;;   (package-install 'use-package))
+(straight-use-package 'use-package)
+;; (eval-and-compile
+;;   (setq use-package-always-ensure nil)
+;;   (setq use-package-always-defer nil)
+;;   (setq use-package-always-demand nil)
+;;   (setq use-package-expand-minimally nil)
+;;   (setq use-package-enable-imenu-support t))
+;; (eval-when-compile
+;;   (require 'use-package))
 
-;; Load path
-;; Optimize: Force "lisp"" and "site-lisp" at the head to reduce the startup time.
-(defun update-load-path (&rest _)
-  "Update `load-path'."
-  (dolist (dir '("site-lisp" "lisp"))
-    (push (expand-file-name dir user-emacs-directory) load-path)))
+;; Keep ~/.emacs.d/ clean.
+(use-package no-littering
+  :ensure t
+  :demand t)
 
-(defun add-subdirs-to-load-path (&rest _)
-  "Add subdirectories to `load-path'.
+;; Bootstrap `quelpa'.
+(use-package quelpa
+  :ensure t
+  :commands quelpa
+  :custom
+  (quelpa-git-clone-depth 1)
+  (quelpa-self-upgrade-p nil)
+  (quelpa-update-melpa-p nil)
+  (quelpa-checkout-melpa-p nil))
 
-Don't put large files in `site-lisp' directory, e.g. EAF.
-Otherwise the startup will be very slow."
-  (let ((default-directory (expand-file-name "site-lisp" user-emacs-directory)))
-    (normal-top-level-add-subdirs-to-load-path)))
+;; --debug-init implies `debug-on-error'.
+(setq debug-on-error init-file-debug)
 
-(advice-add #'package-initialize :after #'update-load-path)
-(advice-add #'package-initialize :after #'add-subdirs-to-load-path)
+(let ((dir (locate-user-emacs-file "lisp")))
+  (add-to-list 'load-path (file-name-as-directory dir))
+  (add-to-list 'load-path (file-name-as-directory (expand-file-name "lang" dir))))
+(setq custom-file (locate-user-emacs-file "custom.el"))
 
-(update-load-path)
-
-(require 'init-const)
-(require 'init-funcs)
-(require 'init-package)
-
-;; Preferences
 (require 'init-base)
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(require 'init-utils)
+(require 'init-ui)
+(require 'init-tools)
+(require 'init-evil)
+(require 'init-lsp)
+(require 'init-git)
+(require 'init-dev)
+(require 'init-dired)
+(require 'init-minibuffer)
+
+;; ;; standalone apps
+(require 'init-org)
+(require 'init-text)
+;; (require 'init-mail)
+(require 'init-shell)
+(require 'init-spell)
+
+;; ;; MacOS specific
+(when (eq system-type 'darwin)
+  (require 'init-osx))
+
+(when (file-exists-p custom-file)
+  (load custom-file))
+
+(provide 'init)
+
 ;;; init.el ends here

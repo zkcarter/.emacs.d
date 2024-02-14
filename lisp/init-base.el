@@ -1,209 +1,532 @@
-(require 'subr-x)
-(require 'init-funcs)
+;;; init-base.el --- The necessary settings -*- lexical-binding: t -*-
 
-;; Compatibility
-(use-package compat :demand t)
+;;; Commentary:
+;;
 
-;; Personal information
-(setq user-full-name "zkCarter"
-      user-mail-address "carter@zklink.org")
+;;; Code:
 
-(with-no-warnings
-  ;; Key Modifiers
-  (cond
-   (sys/win32p
-    ;; make PC keyboard's Win key or other to type Super or Hyper
-    ;; (setq w32-pass-lwindow-to-system nil)
-    (setq w32-lwindow-modifier 'super     ; Left Windows key
-          w32-apps-modifier 'hyper)       ; Menu/App key
-    (w32-register-hot-key [s-t]))
-   (sys/mac-port-p
-    ;; Compatible with Emacs Mac port
-    (setq mac-option-modifier 'meta
-          mac-command-modifier 'super)
-    (bind-keys ([(super a)] . mark-whole-buffer)
-               ([(super c)] . kill-ring-save)
-               ([(super l)] . goto-line)
-               ([(super q)] . save-buffers-kill-emacs)
-               ([(super s)] . save-buffer)
-               ([(super v)] . yank)
-               ([(super w)] . delete-frame)
-               ([(super z)] . undo))))
+;; Suppress GUI features and more
+(setq use-file-dialog nil
+      use-dialog-box nil
+      inhibit-x-resources t
+      inhibit-default-init t
+      inhibit-startup-screen t
+      inhibit-startup-message t
+      inhibit-startup-buffer-menu t)
 
-  ;; Optimization
-  (when sys/win32p
-    (setq w32-get-true-file-attributes nil   ; decrease file IO workload
-          w32-use-native-image-API t         ; use native w32 API
-          w32-pipe-read-delay 0              ; faster IPC
-          w32-pipe-buffer-size 65536))       ; read more at a time (64K, was 4K)
-  (unless sys/macp
-    (setq command-line-ns-option-alist nil))
-  (unless sys/linuxp
-    (setq command-line-x-option-alist nil))
+;; Pixelwise resize
+(setq window-resize-pixelwise t
+      frame-resize-pixelwise t)
 
-  ;; Increase how much is read from processes in a single chunk (default is 4kb)
-  (setq read-process-output-max #x10000)  ; 64kb
+;; Linux specific
+(setq x-gtk-use-system-tooltips nil
+      x-gtk-use-native-input t
+      x-underline-at-descent-line t)
 
-  ;; Don't ping things that look like domain names.
-  (setq ffap-machine-p-known 'reject))
+;; With GPG 2.1+, this forces gpg-agent to use the Emacs minibuffer to prompt
+;; for the key passphrase.
+(setq epg-pinentry-mode 'loopback)
 
-;; Garbage Collector Magic Hack
-(use-package gcmh
-  :diminish
-  :hook (emacs-startup . gcmh-mode)
-  :init
-  (setq gcmh-idle-delay 'auto
-        gcmh-auto-idle-delay-factor 10
-        gcmh-high-cons-threshold #x1000000)) ; 16MB
+;; Optimize for very long lines
+(setq-default bidi-paragraph-direction 'left-to-right)
+(setq bidi-inhibit-bpa t)
 
-;; Set UTF-8 as the default coding system
-(when (fboundp 'set-charset-priority)
-  (set-charset-priority 'unicode))
-(prefer-coding-system 'utf-8)
-(setq locale-coding-system 'utf-8)
-(setq system-time-locale "C")
-(unless sys/win32p
-  (set-selection-coding-system 'utf-8))
+;; No backup files
+(setq make-backup-files nil
+      auto-save-default nil)
 
-;; Environment
-(when (or sys/mac-x-p sys/linux-x-p (daemonp))
-  (use-package exec-path-from-shell
-    :custom (exec-path-from-shell-arguments '("-l"))
-    :init (exec-path-from-shell-initialize)))
+;; No lock files
+(setq create-lockfiles nil)
 
-;; Save place
-(use-package saveplace
-  :hook (after-init . save-place-mode))
+;; Always load the newest file
+(setq load-prefer-newer t)
 
-;; History
-(use-package recentf
-  :bind (("C-x C-r" . recentf-open-files))
-  :hook (after-init . recentf-mode)
-  :init (setq recentf-max-saved-items 300
-              recentf-exclude
-              '("\\.?cache" ".cask" "url" "COMMIT_EDITMSG\\'" "bookmarks"
-                "\\.\\(?:gz\\|gif\\|svg\\|png\\|jpe?g\\|bmp\\|xpm\\)$"
-                "\\.?ido\\.last$" "\\.revive$" "/G?TAGS$" "/.elfeed/"
-                "^/tmp/" "^/var/folders/.+$" "^/ssh:" "/persp-confs/"
-                (lambda (file) (file-in-directory-p file package-user-dir))))
-  :config
-  (push (expand-file-name recentf-save-file) recentf-exclude)
-  (add-to-list 'recentf-filename-handlers #'abbreviate-file-name))
+;; Cutting and pasting use primary/clipboard
+(setq select-enable-primary t
+      select-enable-clipboard t)
 
-(use-package savehist
-  :hook (after-init . savehist-mode)
-  :init (setq enable-recursive-minibuffers t ; Allow commands in minibuffers
-              history-length 1000
-              savehist-additional-variables '(mark-ring
-                                              global-mark-ring
-                                              search-ring
-                                              regexp-search-ring
-                                              extended-command-history)
-              savehist-autosave-interval 300))
+;; No gc for font caches
+(setq inhibit-compacting-font-caches t)
 
-;; Misc.
+;; Improve display
+(setq display-raw-bytes-as-hex t
+      redisplay-skip-fontification-on-input t)
+
+;; No annoying bell
+(setq ring-bell-function 'ignore)
+
+;; No eyes distraction
+(setq blink-cursor-mode nil)
+
+;; Smooth scroll & friends
+(setq scroll-step 2
+      scroll-margin 2
+      hscroll-step 2
+      hscroll-margin 2
+      scroll-conservatively 101
+      scroll-preserve-screen-position 'always)
+
+;; The nano style for truncated long lines.
+(setq auto-hscroll-mode 'current-line)
+
+;; Disable auto vertical scroll for tall lines
+(setq auto-window-vscroll nil)
+
+;; Dont move points out of eyes
+(setq mouse-yank-at-point t)
+
+(setq-default fill-column 80)
+
+;; Treats the `_' as a word constituent
+(add-hook 'after-change-major-mode-hook
+          (lambda ()
+            (modify-syntax-entry ?_ "w")))
+
+;; No tabs
+(setq-default indent-tabs-mode nil)
+(setq-default tab-width 4)
+
+;; Font size
+(set-face-attribute 'default nil :height 140)
+
+;; Sane defaults
+(setq use-short-answers t)
+
+;; Inhibit switching out from `y-or-n-p' and `read-char-choice'
+(setq y-or-n-p-use-read-key t
+      read-char-choice-use-read-key t)
+
+;; Enable the disabled narrow commands
+(put 'narrow-to-defun  'disabled nil)
+(put 'narrow-to-page   'disabled nil)
+(put 'narrow-to-region 'disabled nil)
+
+;; Enable the disabled dired commands
+(put 'dired-find-alternate-file 'disabled nil)
+
+;; Enable the disabled `list-timers', `list-threads' commands
+(put 'list-timers 'disabled nil)
+(put 'list-threads 'disabled nil)
+
+;; Quick editing in `describe-variable'
+(with-eval-after-load 'help-fns
+  (put 'help-fns-edit-variable 'disabled nil))
+
+;; Use TeX as default IM
+(setq default-input-method "TeX")
+
+;; Keep clean but enable `menu-bar' in MacOS
+(when (and (fboundp 'menu-bar-mode) (not (eq system-type 'darwin)))
+  (menu-bar-mode -1))
+(when (fboundp 'tool-bar-mode)
+  (tool-bar-mode -1))
+(when (fboundp 'set-scroll-bar-mode)
+  (set-scroll-bar-mode nil))
+
+;; Highlight parenthesises
+(use-package paren
+  :ensure nil
+  :hook (after-init . show-paren-mode)
+  :custom
+  (show-paren-when-point-inside-paren t)
+  (show-paren-when-point-in-periphery t))
+
+;; Show line/column number and more
 (use-package simple
   :ensure nil
-  :hook ((after-init . size-indication-mode)
-         (text-mode . visual-line-mode)
-         ((prog-mode markdown-mode conf-mode) . enable-trailing-whitespace))
-  :init
-  (setq column-number-mode t
-        line-number-mode t
-        ;; kill-whole-line t               ; Kill line including '\n'
-        line-move-visual nil
-        track-eol t                     ; Keep cursor at end of lines. Require line-move-visual is nil.
-        set-mark-command-repeat-pop t)  ; Repeating C-SPC after popping mark pops it again
+  :custom
+  ;; show line/column/filesize in modeline
+  (line-number-mode t)
+  (column-number-mode t)
+  (size-indication-mode t)
+  ;; No visual feedback on copy/delete.
+  (copy-region-blink-delay 0)
+  (delete-pair-blink-delay 0)
+  ;; confusing if no fringes (GUI only).
+  (visual-line-fringe-indicators '(nil right-curly-arrow))
+  ;; don't save current clipboard text before replacing it
+  (save-interprogram-paste-before-kill nil)
+  ;; eliminate duplicates
+  (kill-do-not-save-duplicates t)
+  ;; include '\n' when point starts at the beginning-of-line
+  (kill-whole-line t)
+  ;; show cwd when `shell-command' and `async-shell-command'
+  (shell-command-prompt-show-cwd t)
+  ;; show the name of character in `what-cursor-position'
+  (what-cursor-show-names t)
+  ;; List only applicable commands.
+  ;;
+  ;; ``` elisp
+  ;; (defun foo ()
+  ;;   (interactive nil org-mode)
+  ;;   (message "foo"))
+  ;; ```
+  ;;
+  ;; M-x foo should only be available in `org-mode` or modes derived from `org-mode`.
+  (read-extended-command-predicate #'command-completion-default-include-p))
 
-  ;; Visualize TAB, (HARD) SPACE, NEWLINE
-  (setq-default show-trailing-whitespace nil) ; Don't show trailing whitespace by default
-  (defun enable-trailing-whitespace ()
-    "Show trailing spaces and delete on saving."
-    (setq show-trailing-whitespace t)
-    (add-hook 'before-save-hook #'delete-trailing-whitespace nil t))
+;; Type text
+(use-package text-mode
+  :ensure nil
+  :custom
+  ;; better word wrapping for CJK characters
+  (word-wrap-by-category t)
+  ;; paragraphs
+  (sentence-end-double-space nil))
 
-  ;; Prettify the process list
-  (with-no-warnings
-    (defun my-list-processes--prettify ()
-      "Prettify process list."
-      (when-let ((entries tabulated-list-entries))
-        (setq tabulated-list-entries nil)
-        (dolist (p (process-list))
-          (when-let* ((val (cadr (assoc p entries)))
-                      (name (aref val 0))
-                      (pid (aref val 1))
-                      (status (aref val 2))
-                      (status (list status
-                                    'face
-                                    (if (memq status '(stop exit closed failed))
-                                        'error
-                                      'success)))
-                      (buf-label (aref val 3))
-                      (tty (list (aref val 4) 'face 'font-lock-doc-face))
-                      (thread (list (aref val 5) 'face 'font-lock-doc-face))
-                      (cmd (list (aref val 6) 'face 'completions-annotations)))
-            (push (list p (vector name pid status buf-label tty thread cmd))
-		          tabulated-list-entries)))))
-    (advice-add #'list-processes--refresh :after #'my-list-processes--prettify)))
+;; Back to the previous position
+(use-package saveplace
+  :ensure nil
+  :hook (after-init . save-place-mode))
 
-;; Misc
-(if (boundp 'use-short-answers)
-    (setq use-short-answers t)
-  (fset 'yes-or-no-p 'y-or-n-p))
-(setq-default major-mode 'text-mode
-              fill-column 80
-              tab-width 4
-              indent-tabs-mode nil)     ; Permanently indent with spaces, never with TABs
+;; Highlight current line in GUI
+(use-package hl-line
+  :ensure nil
+  :when (display-graphic-p)
+  :hook (after-init . global-hl-line-mode))
 
-(setq visible-bell t
-      inhibit-compacting-font-caches t  ; Don’t compact font caches during GC
-      delete-by-moving-to-trash t       ; Deleting files go to OS's trash folder
-      make-backup-files nil             ; Forbide to make backup files
-      auto-save-default nil             ; Disable auto save
+;; Enable `repeat-mode' to reduce key sequence length
+;;
+;; If we have been idle for `repeat-exit-timeout' seconds, exit the repeated
+;; state.
+(use-package repeat
+  :ensure nil
+  :custom
+  (repeat-mode t)
+  (repeat-exit-timeout 3)
+  (repeat-exit-key (kbd "RET")))
 
-      uniquify-buffer-name-style 'post-forward-angle-brackets ; Show path if names are same
-      adaptive-fill-regexp "[ t]+|[ t]*([0-9]+.|*+)[ t]*"
-      adaptive-fill-first-line-regexp "^* *$"
-      sentence-end "\\([。！？]\\|……\\|[.?!][]\"')}]*\\($\\|[ \t]\\)\\)[ \t\n]*"
-      sentence-end-double-space nil
-      word-wrap-by-category t)
+;; Server mode.
+;; Use emacsclient to connect
+(use-package server
+  :ensure nil
+  :hook (after-init . server-mode))
 
-;; Frame
-(when (display-graphic-p)
-  ;; Frame fullscreen
-  (add-hook 'window-setup-hook #'fix-fullscreen-cocoa)
-  (bind-key "S-s-<return>" #'toggle-frame-fullscreen)
-  (and sys/mac-x-p (bind-key "C-s-f" #'toggle-frame-fullscreen))
+;; Workaround with minified source files
+(use-package so-long
+  :ensure nil
+  :hook (after-init . global-so-long-mode))
 
-  ;; Resize and re-position frames conveniently
-  ;; Same keybindings as Rectangle on macOS
-  (bind-keys ("C-M-<return>"    . centaur-frame-maximize)
-             ("C-M-<backspace>" . centaur-frame-restore)
-             ("C-M-<left>"      . centaur-frame-left-half)
-             ("C-M-<right>"     . centaur-frame-right-half)
-             ("C-M-<up>"        . centaur-frame-top-half)
-             ("C-M-<down>"      . centaur-frame-bottom-half))
+;; Completion engine
+(use-package minibuffer
+  :ensure nil
+  :bind (:map minibuffer-local-map
+         ([escape] . abort-recursive-edit)
+         :map minibuffer-local-ns-map
+         ([escape] . abort-recursive-edit)
+         :map minibuffer-local-completion-map
+         ([escape] . abort-recursive-edit)
+         :map minibuffer-local-must-match-map
+         ([escape] . abort-recursive-edit)
+         :map minibuffer-local-isearch-map
+         ([escape] . abort-recursive-edit))
+  :custom
+  ;; Default minibuffer is fine-tuned since Emacs 29
+  (completion-auto-help t)
+  (completion-show-help nil)
+  (completion-cycle-threshold nil)
+  (completion-auto-select 'second-tab)
+  (enable-recursive-minibuffers t)
+  (minibuffer-depth-indicate-mode t)
+  ;; shorten " (default %s)" => " [%s]"
+  (minibuffer-default-prompt-format " [%s]")
+  (minibuffer-electric-default-mode t)
+  ;; Don't insert completion at point into minibuffer
+  (minibuffer-completion-auto-choose nil)
+  ;; One frame one minibuffer.
+  (minibuffer-follows-selected-frame nil)
+  ;; Ignore cases when complete
+  (completion-ignore-case t)
+  (read-buffer-completion-ignore-case t)
+  (read-file-name-completion-ignore-case t)
+  ;; `selectrum', `vertico' and `icomplete' will honoring
+  (completion-styles '(basic partial-completion substring flex))
+  (completion-category-overrides '((buffer (styles . (flex)))
+                                   (eglot-capf (styles . (basic partial-completion)))
+                                   (imenu (styles . (substring)))))
+  ;; vertical view
+  (completions-format 'one-column)
+  (completions-max-height 13)
+  (completions-detailed t))
 
-  ;; Frame transparence
-  (use-package transwin
-    :bind (("C-M-9" . transwin-inc)
-           ("C-M-8" . transwin-dec)
-           ("C-M-7" . transwin-toggle))
-    :init
-    (when sys/linux-x-p
-      (setq transwin-parameter-alpha 'alpha-background)
-      (transwin-ask '80))))
+;; Holidays
+(use-package calendar
+  :ensure nil
+  :hook (calendar-today-visible . calendar-mark-today)
+  :custom
+  (calendar-chinese-all-holidays-flag t)
+  (holiday-local-holidays `((holiday-fixed 3 8  "Women's Day")
+                            (holiday-fixed 3 12 "Arbor Day")
+                            ,@(cl-loop for i from 1 to 3
+                                       collect `(holiday-fixed 5 ,i "International Workers' Day"))
+                            (holiday-fixed 5 4  "Chinese Youth Day")
+                            (holiday-fixed 6 1  "Children's Day")
+                            (holiday-fixed 9 10 "Teachers' Day")
+                            ,@(cl-loop for i from 1 to 7
+                                       collect `(holiday-fixed 10 ,i "National Day"))
+                            (holiday-fixed 10 24 "Programmers' Day")
+                            (holiday-fixed 11 11 "Singles' Day")))
+  (holiday-other-holidays '((holiday-fixed 4 22 "Earth Day")
+                            (holiday-fixed 4 23 "World Book Day")
+                            (holiday-sexp '(if (or (zerop (% year 400))
+                                                   (and (% year 100) (zerop (% year 4))))
+                                               (list 9 12 year)
+                                             (list 9 13 year))
+                                          "World Programmers' Day")
+                            (holiday-fixed 10 10 "World Mental Health Day")))
+  (calendar-holidays `(,@holiday-general-holidays
+                       ,@holiday-oriental-holidays
+                       ,@holiday-christian-holidays
+                       ,@holiday-other-holidays
+                       ,@holiday-local-holidays))
+  (calendar-mark-holidays-flag t)
+  (calendar-mark-diary-entries-flag nil)
+  ;; Prefer +0800 over CST
+  (calendar-time-zone-style 'numeric)
+  ;; year/month/day
+  (calendar-date-style 'iso))
 
-;; Global keybindings
-(bind-keys ("s-r"     . revert-this-buffer)
-           ("C-x K"   . delete-this-file)
-           ("C-c C-l" . reload-init-file))
+;; Appointment
+(use-package appt
+  :ensure nil
+  :hook (after-init . appt-activate)
+  :config
+  (defun appt-display-with-notification (min-to-app new-time appt-msg)
+    (notify-send :title (format "Appointment in %s minutes" min-to-app)
+                 :body appt-msg
+                 :urgency 'critical)
+    (appt-disp-window min-to-app new-time appt-msg))
+  :custom
+  (appt-audible nil)
+  (appt-display-diary nil)
+  (appt-display-interval 5)
+  (appt-display-mode-line t)
+  (appt-message-warning-time 15)
+  (appt-disp-window-function #'appt-display-with-notification))
 
-;; Sqlite
-(when (fboundp 'sqlite-open)
-  (use-package emacsql-sqlite-builtin))
+;; Build regexp with visual feedback
+(use-package re-builder
+  :ensure nil
+  :commands re-builder
+  :bind (:map reb-mode-map
+         ("C-c C-k" . reb-quit)
+         ("C-c C-p" . reb-prev-match)
+         ("C-c C-n" . reb-next-match))
+  :custom
+  (reb-re-syntax 'string))
+
+;; window layout manager
+;;
+;; gt next-tab
+;; gT prev-tab
+(use-package tab-bar
+  :ensure nil
+  :hook (after-init . tab-bar-mode)
+  :custom
+  (tab-bar-show nil)
+  (tab-bar-tab-hints t)
+  (tab-bar-close-button-show nil)
+  (tab-bar-tab-name-function 'tab-bar-tab-name-all)
+  (tab-bar-format '(tab-bar-format-tabs tab-bar-separator)))
+
+(use-package newcomment
+  :ensure nil
+  :bind ([remap comment-dwim] . comment-or-uncomment)
+  :config
+  (defun comment-or-uncomment ()
+    "Comment or uncomment the current line or region.
+
+If the region is active and `transient-mark-mode' is on, call
+`comment-or-uncomment-region'.
+Else, if the current line is empty, insert a comment and indent
+it.
+Else, call `comment-or-uncomment-region' on the current line."
+    (interactive)
+    (if (region-active-p)
+        (comment-or-uncomment-region (region-beginning) (region-end))
+      (if (save-excursion
+            (beginning-of-line)
+            (looking-at "\\s-*$"))
+          (comment-dwim nil)
+        (comment-or-uncomment-region (line-beginning-position) (line-end-position)))))
+  :custom
+  ;; `auto-fill' inside comments.
+  ;;
+  ;; The quoted text in `message-mode' are identified as comments, so only
+  ;; quoted text can be `auto-fill'ed.
+  (comment-auto-fill-only-comments t))
+
+;; transparent remote access
+(use-package tramp
+  :ensure nil
+  :defer t
+  :custom
+  ;; Always use file cache when using tramp
+  (remote-file-name-inhibit-cache nil)
+  (tramp-default-method "ssh"))
+
+;; Command line interpreter
+(use-package comint
+  :ensure nil
+  :bind (:map comint-mode-map
+         ([remap kill-region]   . backward-kill-word))
+  :custom
+  ;; No paging, `eshell' and `shell' will honoring.
+  (comint-pager "cat")
+  ;; Make the prompt of "*Python*" buffer readonly
+  (comint-prompt-read-only t)
+  (comint-history-isearch 'dwim)
+  ;; Colorize
+  (comint-terminfo-terminal "dumb-emacs-ansi"))
+
+;; Better abbrev expansion
+(use-package hippie-exp
+  :ensure nil
+  :bind ([remap dabbrev-expand] . hippie-expand)
+  :config
+  (defun try-expand-tempo (_old)
+    (require 'tempo)
+    (tempo-expand-if-complete))
+  :custom
+  (hippie-expand-try-functions-list '(try-expand-tempo
+                                      try-expand-dabbrev
+                                      try-expand-dabbrev-all-buffers
+                                      try-expand-dabbrev-from-kill
+                                      try-complete-file-name-partially
+                                      try-complete-file-name
+                                      try-expand-all-abbrevs
+                                      try-expand-list
+                                      try-expand-line
+                                      try-complete-lisp-symbol-partially
+                                      try-complete-lisp-symbol)))
+
+;; Buffer index
+(use-package imenu
+  :hook (imenu-after-jump . recenter))
+
+;; Needed by `webpaste'
+(use-package browse-url
+  :ensure nil
+  :custom
+  (browse-url-generic-program (or (executable-find "firefox")
+                                  (executable-find "chromium")
+                                  (executable-find "google-chrome-stable")
+                                  (executable-find "google-chrome")
+                                  (when (eq system-type 'darwin) "open")
+                                  (when (eq system-type 'gnu/linux) "xdg-open")))
+  (browse-url-handlers '(("\\`file:" . browse-url-default-browser))))
+
+;; Buffer manager
+;;
+;; `sR': switch to saved filter groups
+(use-package ibuffer
+  :ensure nil
+  :hook (ibuffer-mode . ibuffer-auto-mode)
+  :bind ([remap list-buffers] . ibuffer)
+  :custom
+  (ibuffer-expert t)
+  (ibuffer-movement-cycle nil)
+  (ibuffer-show-empty-filter-groups nil)
+  (ibuffer-saved-filter-groups
+   '(("Default"
+      ("Emacs" (or (name . "\\*scratch\\*")
+                   (name . "\\*dashboard\\*")
+                   (name . "\\*compilation\\*")
+                   (name . "\\*Backtrace\\*")
+                   (name . "\\*Packages\\*")
+                   (name . "\\*Messages\\*")
+                   (name . "\\*Customize\\*")))
+      ("Browser" (or (mode . eww-mode)
+                     (mode . xwidget-webkit-mode)))
+      ("Help" (or (name . "\\*Help\\*")
+                  (name . "\\*Apropos\\*")
+                  (name . "\\*info\\*")
+                  (mode . Man-mode)
+                  (mode . woman-mode)))
+      ("Repl" (or (mode . gnuplot-comint-mode)
+                  (mode . inferior-emacs-lisp-mode)
+                  (mode . inferior-python-mode)))
+      ("Term" (or (mode . term-mode)
+                  (mode . shell-mode)
+                  (mode . eshell-mode)))
+      ("Mail" (or (mode . mail-mode)
+                  (mode . message-mode)
+                  (derived-mode . gnus-mode)))
+      ("Conf" (or (mode . yaml-mode)
+                  (mode . conf-mode)))
+      ("Dict" (or (mode . fanyi-mode)
+                  (mode . dictionary-mode)))
+      ("Text" (and (derived-mode . text-mode)
+                   (not (starred-name))))
+      ("Magit" (or (mode . magit-repolist-mode)
+                   (mode . magit-submodule-list-mode)
+                   (mode . git-rebase-mode)
+                   (derived-mode . magit-section-mode)
+                   (mode . vc-annotate-mode)))
+      ("VC" (or (mode . diff-mode)
+                (derived-mode . log-view-mode)))
+      ("Prog" (and (derived-mode . prog-mode)
+                   (not (starred-name))))
+      ("Dired" (mode . dired-mode))
+      ("IRC" (or (mode . rcirc-mode)
+                 (mode . erc-mode)))))))
+
+;; Notifications
+;;
+;; Actually, `notify-send' is not defined in notifications package, but the
+;; autoload cookie will make Emacs load `notifications' first, then our
+;; `defalias' will be evaluated.
+(pcase system-type
+  ('gnu/linux
+   (use-package notifications
+     :ensure nil
+     :commands notify-send
+     :config
+     (defalias 'notify-send 'notifications-notify)))
+  ('darwin
+   (defun notify-send (&rest params)
+     "Send notifications via `terminal-notifier'."
+     (let ((title (plist-get params :title))
+           (body (plist-get params :body)))
+       (start-process "terminal-notifier"
+                      nil
+                      "terminal-notifier"
+                      "-group" "Emacs"
+                      "-title" title
+                      "-message" body
+                      "-activate" "org.gnu.Emacs"))))
+  (_
+   (defalias 'notify-send 'ignore)))
+
+;; Recently opened files
+(use-package recentf
+  :ensure nil
+  :hook (after-init . recentf-mode)
+  :custom
+  (recentf-max-saved-items 300)
+  (recentf-auto-cleanup 'never)
+  (recentf-exclude '(;; Folders on MacOS start
+                     "^/private/tmp/"
+                     "^/var/folders/"
+                     ;; Folders on MacOS end
+                     "^/tmp/"
+                     "/ssh\\(x\\)?:"
+                     "/su\\(do\\)?:"
+                     "^/usr/include/"
+                     "/TAGS\\'"
+                     "COMMIT_EDITMSG\\'")))
+
+;; Try out emacs package without installing
+(use-package try
+  :ensure t
+  :commands try try-and-refresh)
+
+;; MacOS specific
+(use-package exec-path-from-shell
+  :ensure t
+  :when (eq system-type 'darwin)
+  :hook (after-init . exec-path-from-shell-initialize))
 
 (provide 'init-base)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; init-base.el ends here

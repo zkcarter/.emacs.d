@@ -7,27 +7,24 @@
 # Backup files
 *~
 
-# custom
-custom.el
-
 # Undo-tree save-files
 *.~undo-tree
 
 # flycheck temp file
 .flycheck*
 
-# recentf
-recentf
-history
-places
+# The quickstart file
+package-quickstart.el
 
-# network
-*.data
+# shell startfile
+init_bash.sh
+init_zsh.sh
 
 elpa/
-etc/
-var/
 quelpa/
+var/
+etc/
 eln-cache/
 tree-sitter/
-auto-save-list/
+snippets/
+straight/
