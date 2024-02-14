@@ -19,11 +19,15 @@ custom.el
 # recentf
 recentf
 history
+places
 
 # network
 *.data
 
 elpa/
+etc/
+var/
 quelpa/
 eln-cache/
 tree-sitter/
+auto-save-list/
